@@ -1,20 +1,13 @@
 package com.musinsa.assignment.product.application.listener;
 
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.minBy;
-import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 import com.musinsa.assignment.product.application.contract.CacheManager;
 import com.musinsa.assignment.product.application.contract.ProductRepository;
-import com.musinsa.assignment.product.application.exception.ProductNotFoundException;
-import com.musinsa.assignment.product.application.listener.event.AddBrandEvent;
-import com.musinsa.assignment.product.application.listener.event.AddProductEvent;
-import com.musinsa.assignment.product.application.listener.event.RemoveProductEvent;
-import com.musinsa.assignment.product.application.listener.event.UpdateProductEvent;
+import com.musinsa.assignment.product.application.listener.event.ProductChangeEvent;
 import com.musinsa.assignment.product.domain.Product;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -26,104 +19,53 @@ public class ProductEventListener {
     private final CacheManager cacheManager;
 
     @EventListener
-    public void listen(AddProductEvent event) {
-        updateOneProduct(event.productId());
+    public void listen(ProductChangeEvent event) {
+        updateCategoryMinPrice();
+        updateCategoryMaxPrice();
+        updateBrandMinPrice();
     }
 
-    @EventListener
-    public void listen(UpdateProductEvent event) {
-        updateOneProduct(event.productId());
-    }
-
-    @EventListener
-    public void listen(RemoveProductEvent event) {
-        updateOneProduct(event.productId());
-    }
-
-    private void updateOneProduct(Long productId) {
-        var product = productRepository.findById(productId)
-            .orElseThrow(ProductNotFoundException::new);
-
-        updateCategoryMinPrice(product);
-        updateCategoryMaxPrice(product);
-        updateBrandMinPrice(productRepository.findAllByBrandId(product.getBrandId()));
-    }
-
-    @EventListener
-    public void listen(AddBrandEvent event) {
-        var brandProducts = productRepository.findAllByBrandId(event.brandId());
-        brandProducts.forEach(newProduct -> {
-            updateCategoryMinPrice(newProduct);
-            updateCategoryMaxPrice(newProduct);
-        });
-
-        updateBrandMinPrice(brandProducts);
-    }
-
-    private void updateCategoryMinPrice(Product newProduct) {
-        var key = "CATEGORY:MIN:" + newProduct.getCategory().name();
-
-        var oldProduct = cacheManager.get(key, Product.class);
-        oldProduct.ifPresentOrElse(
-            product -> {
-                if (product.getPrice() > newProduct.getPrice()) {
-                    cacheManager.set(key, newProduct);
-                }
-            },
-            () -> cacheManager.set(key, newProduct)
-        );
-    }
-
-    private void updateCategoryMaxPrice(Product newProduct) {
-        var key = "CATEGORY:MAX:" + newProduct.getCategory().name();
-
-        var oldProduct = cacheManager.get(key, Product.class);
-        oldProduct.ifPresentOrElse(
-            product -> {
-                if (product.getPrice() <= newProduct.getPrice()) {
-                    cacheManager.set(key, newProduct);
-                }
-            },
-            () -> cacheManager.set(key, newProduct)
-        );
-    }
-
-    private void updateBrandMinPrice(List<Product> newBrandProducts) {
-        var key = "BRAND:MIN";
-
-        var minBrandProducts = newBrandProducts.stream()
-            .collect(groupingBy(
+    private void updateCategoryMinPrice() {
+        var minProductMap = productRepository.findMinPriceProductsByCategory().stream()
+            .collect(toMap(
                 Product::getCategory,
-                minBy(Comparator.comparingInt(Product::getPrice))
-            ))
-            .values().stream()
-            .filter(Optional::isPresent)
-            .map(Optional::get)
-            .collect(toList());
+                Function.identity()
+            ));
 
-        var minTotalPrice = minBrandProducts.stream()
-            .mapToInt(Product::getPrice)
-            .sum();
+        minProductMap.keySet()
+            .forEach(category -> {
+                var key = "CATEGORY:MIN:" + category.name();
+                var minProduct = minProductMap.get(category);
+               cacheManager.set(key, minProduct);
+            });
+    }
 
-        var newBrandCacheData = new BrandMinCacheData(
-            minBrandProducts,
-            minTotalPrice
-        );
+    private void updateCategoryMaxPrice() {
+        var maxProductMap = productRepository.findMaxPriceProductsByCategory().stream()
+            .collect(toMap(
+                Product::getCategory,
+                Function.identity()
+            ));
 
-        var oldBrand = cacheManager.get(key, BrandMinCacheData.class);
-        oldBrand.ifPresentOrElse(
-            brand -> {
-                if (brand.totalPrice() > newBrandCacheData.totalPrice()) {
-                    cacheManager.set(key, newBrandCacheData);
-                }
-            },
-            () -> cacheManager.set(key, newBrandCacheData)
-        );
+        maxProductMap.keySet()
+            .forEach(category -> {
+                var key = "CATEGORY:MAX:" + category.name();
+                var maxProduct = maxProductMap.get(category);
+                cacheManager.set(key, maxProduct);
+            });
+    }
+
+    private void updateBrandMinPrice() {
+        var key = "BRAND:MIN";
+        var products = productRepository.findAllByBrandMinPrice();
+
+        if (!products.isEmpty()) {
+            cacheManager.set(key, new BrandMinCacheData(products));
+        }
     }
 
     public record BrandMinCacheData(
-        List<Product> products,
-        Integer totalPrice
+        List<Product> products
     ) {
     }
 }

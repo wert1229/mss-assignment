@@ -17,6 +17,16 @@ public class Product {
         this.price = price;
     }
 
+    public Product(Long id,
+                   Long brandId,
+                   Category category,
+                   Integer price) {
+        this.id = id;
+        this.brandId = brandId;
+        this.category = category;
+        this.price = price;
+    }
+
     public void update(Long brandId,
                        Category category,
                        Integer price) {

@@ -9,12 +9,16 @@ public interface ProductRepository {
 
     Long save(Product product);
 
-    void delete(Long id);
+    void delete(Product product);
 
     Optional<Product> findById(Long id);
 
     Integer countByBrandAndCategory(Long brandId, Category category);
 
-    List<Product> findAllByBrandId(Long brandId);
+    List<Product> findMinPriceProductsByCategory();
+
+    List<Product> findMaxPriceProductsByCategory();
+
+    List<Product> findAllByBrandMinPrice();
 
 }

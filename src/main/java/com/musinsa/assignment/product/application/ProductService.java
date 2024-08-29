@@ -8,16 +8,14 @@ import com.musinsa.assignment.product.application.dto.UpdateProductDto;
 import com.musinsa.assignment.product.application.exception.BrandNotFoundException;
 import com.musinsa.assignment.product.application.exception.CategoryEmptyException;
 import com.musinsa.assignment.product.application.exception.ProductNotFoundException;
-import com.musinsa.assignment.product.application.listener.event.AddBrandEvent;
-import com.musinsa.assignment.product.application.listener.event.AddProductEvent;
-import com.musinsa.assignment.product.application.listener.event.RemoveProductEvent;
-import com.musinsa.assignment.product.application.listener.event.UpdateProductEvent;
+import com.musinsa.assignment.product.application.listener.event.ProductChangeEvent;
 import com.musinsa.assignment.product.domain.Brand;
 import com.musinsa.assignment.product.domain.Product;
 import com.musinsa.assignment.product.domain.Product.Category;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +24,7 @@ public class ProductService {
     private final BrandRepository brandRepository;
     private final ApplicationEventPublisher eventPublisher;
 
+    @Transactional
     public void addProduct(AddProductDto dto) {
         checkIfBrandExist(dto.brandId());
 
@@ -35,13 +34,14 @@ public class ProductService {
             dto.price()
         );
 
-        var newProductId = productRepository.save(newProduct);
+        productRepository.save(newProduct);
 
         eventPublisher.publishEvent(
-            new AddProductEvent(newProductId)
+            new ProductChangeEvent()
         );
     }
 
+    @Transactional
     public void updateProduct(Long productId, UpdateProductDto dto) {
         var product = productRepository.findById(productId)
             .orElseThrow(ProductNotFoundException::new);
@@ -58,23 +58,25 @@ public class ProductService {
         productRepository.save(product);
 
         eventPublisher.publishEvent(
-            new UpdateProductEvent(product.getId())
+            new ProductChangeEvent()
         );
     }
 
+    @Transactional
     public void removeProduct(Long productId) {
         var product = productRepository.findById(productId)
             .orElseThrow(ProductNotFoundException::new);
 
         checkIfCategoryEmpty(product.getBrandId(), product.getCategory());
 
-        productRepository.delete(product.getId());
+        productRepository.delete(product);
 
         eventPublisher.publishEvent(
-            new RemoveProductEvent(product.getId())
+            new ProductChangeEvent()
         );
     }
 
+    @Transactional
     public void addBrand(AddBrandDto dto) {
         var newBrandId = brandRepository.save(new Brand(dto.brandName()));
         dto.products().forEach(product ->
@@ -88,7 +90,7 @@ public class ProductService {
         );
 
         eventPublisher.publishEvent(
-            new AddBrandEvent(newBrandId)
+            new ProductChangeEvent()
         );
     }
 
