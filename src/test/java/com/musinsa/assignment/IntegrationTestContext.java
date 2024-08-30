@@ -1,5 +1,6 @@
 package com.musinsa.assignment;
 
+import com.musinsa.assignment.product.application.ProductQueryService;
 import com.musinsa.assignment.product.application.ProductService;
 import com.musinsa.assignment.product.application.contract.BrandRepository;
 import com.musinsa.assignment.product.application.contract.CacheManager;
@@ -14,6 +15,9 @@ public abstract class IntegrationTestContext {
 
     @Autowired
     protected ProductService productService;
+
+    @Autowired
+    protected ProductQueryService productQueryService;
 
     @Autowired
     protected BrandRepository brandRepository;
