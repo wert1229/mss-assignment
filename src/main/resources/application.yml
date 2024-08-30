@@ -1,1 +1,16 @@
-spring.application.name=assignment
+server:
+  port: 8080
+
+spring:
+  application.name: assignment
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:szs;MODE=MySQL;
+    username: sa
+  sql:
+    init:
+      schema-locations: classpath:sql/schema.sql
