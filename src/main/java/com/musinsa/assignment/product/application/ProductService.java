@@ -25,7 +25,7 @@ public class ProductService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public void addProduct(AddProductDto dto) {
+    public Long addProduct(AddProductDto dto) {
         checkIfBrandExist(dto.brandId());
 
         var newProduct = new Product(
@@ -34,11 +34,13 @@ public class ProductService {
             dto.price()
         );
 
-        productRepository.save(newProduct);
+        var newId = productRepository.save(newProduct);
 
         eventPublisher.publishEvent(
             new ProductChangeEvent()
         );
+
+        return newId;
     }
 
     @Transactional
@@ -77,7 +79,7 @@ public class ProductService {
     }
 
     @Transactional
-    public void addBrand(AddBrandDto dto) {
+    public Long addBrand(AddBrandDto dto) {
         var newBrandId = brandRepository.save(new Brand(dto.brandName()));
         dto.products().forEach(product ->
             productRepository.save(
@@ -92,6 +94,8 @@ public class ProductService {
         eventPublisher.publishEvent(
             new ProductChangeEvent()
         );
+
+        return newBrandId;
     }
 
     private void checkIfBrandExist(Long brandId) {

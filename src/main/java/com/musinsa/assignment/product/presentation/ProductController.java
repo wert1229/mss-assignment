@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,15 +32,20 @@ public class ProductController {
 
     @PostMapping("/v1/products")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<Void> addProduct(@Valid @RequestBody AddProductRequest request) {
-        productService.addProduct(
+    public ApiResponse<Map<String, Long>> addProduct(@Valid @RequestBody AddProductRequest request) {
+        var id = productService.addProduct(
             new AddProductDto(
                 request.brandId(),
                 CategoryUtils.convertFrom(request.category()),
                 request.price()
             )
         );
-        return ApiResponse.success();
+
+        return ApiResponse.success(
+            Map.of(
+                "id", id
+            )
+        );
     }
 
     public record AddProductRequest(
@@ -83,7 +89,7 @@ public class ProductController {
 
     @PostMapping("/v1/brand")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<Void> addBrand(@Valid @RequestBody AddBrandRequest request) {
+    public ApiResponse<Map<String, Long>> addBrand(@Valid @RequestBody AddBrandRequest request) {
         var hasAllCategories = CategoryUtils.hasAllCategories(
             request.products().stream()
                 .map(Product::category)
@@ -94,7 +100,7 @@ public class ProductController {
             throw new CategoryEmptyException();
         }
 
-        productService.addBrand(
+        var id = productService.addBrand(
             new AddBrandDto(
                 request.brandName(),
                 request.products().stream()
@@ -105,7 +111,12 @@ public class ProductController {
                     .collect(Collectors.toList())
             )
         );
-        return ApiResponse.success();
+
+        return ApiResponse.success(
+            Map.of(
+                "id", id
+            )
+        );
     }
 
     public record AddBrandRequest(

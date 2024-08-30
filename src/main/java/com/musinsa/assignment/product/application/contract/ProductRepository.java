@@ -13,6 +13,8 @@ public interface ProductRepository {
 
     Optional<Product> findById(Long id);
 
+    List<Product> findAllByBrandId(Long brandId);
+
     Integer countByBrandAndCategory(Long brandId, Category category);
 
     List<Product> findMinPriceProductsByCategory();

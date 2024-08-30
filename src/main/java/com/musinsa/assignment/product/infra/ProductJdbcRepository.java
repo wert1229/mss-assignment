@@ -3,12 +3,15 @@ package com.musinsa.assignment.product.infra;
 import com.musinsa.assignment.product.application.contract.ProductRepository;
 import com.musinsa.assignment.product.domain.Product;
 import com.musinsa.assignment.product.domain.Product.Category;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -21,6 +24,14 @@ public class ProductJdbcRepository implements ProductRepository {
 
     @Override
     public Long save(Product product) {
+        if (product.getId() == null) {
+            return insert(product);
+        } else {
+            return update(product);
+        }
+    }
+
+    private Long insert(Product product) {
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(
         """
@@ -29,12 +40,29 @@ public class ProductJdbcRepository implements ProductRepository {
             """,
             new MapSqlParameterSource(Map.of(
                 "brandId", product.getBrandId(),
-                "category", product.getCategory(),
+                "category", product.getCategory().name(),
                 "price", product.getPrice()
             )),
             keyHolder
         );
         return Objects.requireNonNull(keyHolder.getKey()).longValue();
+    }
+
+    private Long update(Product product) {
+        jdbcTemplate.update(
+            """
+            UPDATE product
+            SET brand_id = :brandId, category = :category, price = :price
+            WHERE id = :id
+            """,
+            new MapSqlParameterSource(Map.of(
+                "brandId", product.getBrandId(),
+                "category", product.getCategory().name(),
+                "price", product.getPrice(),
+                "id", product.getId()
+            ))
+        );
+        return product.getId();
     }
 
     @Override
@@ -52,19 +80,37 @@ public class ProductJdbcRepository implements ProductRepository {
 
     @Override
     public Optional<Product> findById(Long id) {
-        var brand = jdbcTemplate.queryForObject(
-        """
-            SELECT id, brand_id, category, price
-            FROM product
-            WHERE id = :id
-            """,
-            Map.of(
-                "id", id
-            ),
-            new BeanPropertyRowMapper<Product>()
-        );
+        try {
+            var brand = jdbcTemplate.queryForObject(
+                """
+                    SELECT id, brand_id, category, price
+                    FROM product
+                    WHERE id = :id
+                    """,
+                Map.of(
+                    "id", id
+                ),
+                new ProductRowMapper()
+            );
+            return Optional.ofNullable(brand);
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
 
-        return Optional.ofNullable(brand);
+    @Override
+    public List<Product> findAllByBrandId(Long brandId) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, brand_id, category, price
+                FROM product
+                WHERE brand_id = :brandId
+                """,
+            Map.of(
+                "brandId", brandId
+            ),
+            new ProductRowMapper()
+        );
     }
 
     @Override
@@ -78,7 +124,7 @@ public class ProductJdbcRepository implements ProductRepository {
             """,
             Map.of(
                 "brandId", brandId,
-                "category", category
+                "category", category.name()
             ),
             Integer.class
         );
@@ -87,20 +133,35 @@ public class ProductJdbcRepository implements ProductRepository {
     @Override
     public List<Product> findMinPriceProductsByCategory() {
         return jdbcTemplate.query(
-        """
+            """
             SELECT
-                p.id,
-                p.brand_id,
-                p.category,
-                p.price
+                p.id as id,
+                p.brand_id as brand_id,
+                p.category as category,
+                p.price as price
             FROM product p
-            WHERE p.price = (
-                SELECT MIN(p2.price)
-                FROM product p2
-                WHERE p2.category = p1.category
-            )
+            JOIN
+                (SELECT
+                    category,
+                    MAX(id) AS min_product_id
+                FROM
+                    product
+                WHERE
+                    (category, price) IN (
+                        SELECT
+                            category,
+                            MIN(price)
+                        FROM
+                            product
+                        GROUP BY
+                            category
+                    )
+                GROUP BY
+                    category
+                ) min_products
+            ON p.id = min_products.min_product_id
             """,
-            new BeanPropertyRowMapper<>()
+            new ProductRowMapper()
         );
     }
 
@@ -109,18 +170,33 @@ public class ProductJdbcRepository implements ProductRepository {
         return jdbcTemplate.query(
         """
             SELECT
-                p.id,
-                p.brand_id,
-                p.category,
-                p.price
+                p.id as id,
+                p.brand_id as brand_id,
+                p.category as category,
+                p.price as price
             FROM product p
-            WHERE p.price = (
-                SELECT MAX(p2.price)
-                FROM product p2
-                WHERE p2.category = p1.category
-            )
+            JOIN
+                (SELECT
+                    category,
+                    MAX(id) AS max_product_id
+                FROM
+                    product
+                WHERE
+                    (category, price) IN (
+                        SELECT
+                            category,
+                            MAX(price)
+                        FROM
+                            product
+                        GROUP BY
+                            category
+                    )
+                GROUP BY
+                    category
+                ) max_products
+            ON p.id = max_products.max_product_id
             """,
-            new BeanPropertyRowMapper<>()
+            new ProductRowMapper()
         );
     }
 
@@ -129,10 +205,10 @@ public class ProductJdbcRepository implements ProductRepository {
         return jdbcTemplate.query(
         """
             SELECT
-                 p.id,
-                 p.brand_id,
-                 p.category,
-                 p.price
+                p.id as id,
+                p.brand_id as brand_id,
+                p.category as category,
+                p.price as price
             FROM
                  product p
             JOIN (
@@ -170,7 +246,19 @@ public class ProductJdbcRepository implements ProductRepository {
                 LIMIT 1
             ) AS cb ON p.brand_id = cb.brand_id
             """,
-            new BeanPropertyRowMapper<>()
+            new ProductRowMapper()
         );
+    }
+
+    private static class ProductRowMapper implements RowMapper<Product> {
+        @Override
+        public Product mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new Product(
+                rs.getLong("id"),
+                rs.getLong("brand_id"),
+                Category.valueOf(rs.getString("category")),
+                rs.getInt("price")
+            );
+        }
     }
 }
