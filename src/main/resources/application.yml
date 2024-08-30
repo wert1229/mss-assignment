@@ -14,3 +14,7 @@ spring:
   sql:
     init:
       schema-locations: classpath:sql/schema.sql
+
+application:
+  runner:
+    enable: true

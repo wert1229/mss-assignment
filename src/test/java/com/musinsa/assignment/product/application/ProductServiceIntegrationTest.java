@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class ProductServiceTest extends IntegrationTestContext {
+class ProductServiceIntegrationTest extends IntegrationTestContext {
 
     @Test
     @DisplayName("상품이 추가되고 카테고리별 가장 비싼 가격이 캐시에 반영된다")

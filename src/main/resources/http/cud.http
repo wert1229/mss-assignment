@@ -1,0 +1,65 @@
+### 상품 추가
+POST http://localhost:8080/v1/products
+Content-Type: application/json
+
+{
+  "brandId": 1,
+  "category": "상의",
+  "price": 10000
+}
+
+### 상품 수정
+PUT http://localhost:8080/v1/products/1
+Content-Type: application/json
+
+{
+  "brandId": 1,
+  "category": "상의",
+  "price": 20000
+}
+
+### 상품 삭제
+DELETE http://localhost:8080/v1/products/73
+Content-Type: application/json
+
+### 브랜드 추가
+POST http://localhost:8080/v1/brands
+Content-Type: application/json
+
+{
+  "brandName": "Z",
+  "products": [
+    {
+      "category": "상의",
+      "price": 10000
+    },
+    {
+      "category": "아우터",
+      "price": 10000
+    },
+    {
+      "category": "바지",
+      "price": 10000
+    },
+    {
+      "category": "스니커즈",
+      "price": 10000
+    },
+    {
+      "category": "가방",
+      "price": 10000
+    },
+    {
+      "category": "모자",
+      "price": 10000
+    },
+    {
+      "category": "양말",
+      "price": 10000
+    },
+    {
+      "category": "액세서리",
+      "price": 10000
+    }
+  ]
+}

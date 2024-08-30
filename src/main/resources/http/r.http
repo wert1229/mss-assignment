@@ -1,0 +1,11 @@
+### 카테고라 별 최저가 조회
+GET http://localhost:8080/v1/products/categories-min-prices
+Content-Type: application/json
+
+### 브랜드 최저가 조회
+GET http://localhost:8080/v1/products/brand-min-prices
+Content-Type: application/json
+
+### 카테고리 최저가 최고가 조회
+GET http://localhost:8080/v1/products/category-min-max-prices?category=바지
+Content-Type: application/json
