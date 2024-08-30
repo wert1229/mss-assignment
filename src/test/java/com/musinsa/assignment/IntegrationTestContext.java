@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@SpringBootTest
+@SpringBootTest(properties = {"application.runner.enabled=false"})
 public abstract class IntegrationTestContext {
 
     @Autowired

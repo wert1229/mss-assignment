@@ -5,6 +5,6 @@ import com.musinsa.assignment.common.support.Status;
 
 public class ProductNotFoundException extends ApplicationException {
     public ProductNotFoundException() {
-        super(Status.BRAND_NOT_FOUND);
+        super(Status.PRODUCT_NOT_FOUND);
     }
 }
